@@ -91,7 +91,7 @@ export class Block {
     factoryGrid: GridItem[][],
   ) {
     const { x, y, w, h, color } = this.props;
-    const previous = getPrevBlock(this, factoryGrid);
+    // const previous = getPrevBlock(this, factoryGrid);
     // const next = getNextBlock(this, factoryGrid);
 
     const { size: NAIL_SIZE } = factoryConfig.nails;
@@ -207,8 +207,6 @@ function getPrevBlock(
   block: Block,
   factoryGrid: GridItem[][],
 ): Block | undefined {
-  console.log("getPrevBlock", block);
-  
   const { name, fx, fy, bi, bj } = block.getCoords();
   if (bj > 0) {
     return undefined;

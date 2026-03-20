@@ -1,0 +1,1 @@
+export type RandomFn = (min: number, max: number) => number;

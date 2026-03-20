@@ -7,8 +7,8 @@ const HEIGHT = 450;
 // replace with p5
 export const config = {
   space: { width: WIDTH, height: HEIGHT },
-  grid: { width: WIDTH * 1, height: HEIGHT * 1 },
-  margin: { x: WIDTH * 0, y: HEIGHT * 0 },
+  grid: { width: WIDTH * 0.8, height: HEIGHT * 0.8 },
+  margin: { x: WIDTH * 0.1, y: HEIGHT * 0.1 },
   textSize: 14,
   padding: 4,
   borderRadius: 4,

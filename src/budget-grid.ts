@@ -1,6 +1,8 @@
+import { RandomFn } from "./types";
+
 type Position = { x: number; y: number };
 
-type FactoryFunctions = {
+type GridFunctions = {
   total: number;
   secondaryTotal: number;
   stepPositionUpdate: (position: Position, v: number) => Position;
@@ -9,11 +11,11 @@ type FactoryFunctions = {
   getSizeY: (main: number, secondary: number) => number;
 };
 
-function getFactoryFunctions(
+function getGridFunctions(
   direction: "horizontal" | "vertical",
   width: number,
   height: number,
-): FactoryFunctions {
+): GridFunctions {
   if (direction === "horizontal") {
     return {
       total: width,
@@ -48,8 +50,6 @@ type Props = {
   minBlockSize?: number;
 };
 
-type RandomFn = (min: number, max: number) => number;
-
 export function createGrid(props: Props, randomFn: RandomFn) {
   const { direction, size, minBlockSize = 24 } = props;
   const { steps, subSteps, padding } = props;
@@ -65,7 +65,7 @@ export function createGrid(props: Props, randomFn: RandomFn) {
     stepPositionUpdate,
     getSizeX,
     getSizeY,
-  } = getFactoryFunctions(direction, size.width, size.height);
+  } = getGridFunctions(direction, size.width, size.height);
 
   let mainBudget = total - padding * (steps - 1);
 
