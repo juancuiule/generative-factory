@@ -1,4 +1,4 @@
-import { Block } from "./Block";
+import { Block } from "./block";
 import { createGrid } from "./budget-grid";
 import { config, Factory, GridItem } from "./config";
 import { RandomFn } from "./types";

@@ -35,9 +35,9 @@ type BlockProps = {
 export class Block {
   private id: string;
   private props: BlockProps;
-  private initialProps: BlockProps;
+  // private initialProps: BlockProps;
   private type: BlockType = "initial";
-  private pulley: { ccx: number; ccy: number } = { ccx: 0, ccy: 0 };
+  // private pulley: { ccx: number; ccy: number } = { ccx: 0, ccy: 0 };
 
   constructor(
     x: number,
@@ -49,7 +49,7 @@ export class Block {
   ) {
     this.id = id;
     this.props = { x, y, w: width, h: height, id, color: "black" };
-    this.initialProps = { ...this.props };
+    // this.initialProps = { ...this.props };
   }
 
   setColor(color: Color) {
@@ -88,7 +88,7 @@ export class Block {
   draw(
     p: p5,
     { backgroundColor, randomIcon, machineNumber }: Params,
-    factoryGrid: GridItem[][],
+    _factoryGrid: GridItem[][],
   ) {
     const { x, y, w, h, color } = this.props;
     // const previous = getPrevBlock(this, factoryGrid);
@@ -203,28 +203,28 @@ export class Block {
   }
 }
 
-function getPrevBlock(
-  block: Block,
-  factoryGrid: GridItem[][],
-): Block | undefined {
-  const { name, fx, fy, bi, bj } = block.getCoords();
-  if (bj > 0) {
-    return undefined;
-  }
-  const item = factoryGrid[fx][fy];
-  const key = name.includes("meta") ? "metaFactory" : "mainFactory";
-  return item[key][bi][bj - 1];
-}
+// function getPrevBlock(
+//   block: Block,
+//   factoryGrid: GridItem[][],
+// ): Block | undefined {
+//   const { name, fx, fy, bi, bj } = block.getCoords();
+//   if (bj > 0) {
+//     return undefined;
+//   }
+//   const item = factoryGrid[fx][fy];
+//   const key = name.includes("meta") ? "metaFactory" : "mainFactory";
+//   return item[key][bi][bj - 1];
+// }
 
-function getNextBlock(
-  block: Block,
-  factoryGrid: GridItem[][],
-): Block | undefined {
-  const { name, fx, fy, bi, bj } = block.getCoords();
-  const item = factoryGrid[fx][fy];
-  const key = name.includes("meta") ? "metaFactory" : "mainFactory";
-  if (bj < item[key][bi].length - 1) {
-    return undefined;
-  }
-  return item[key][bi][bj + 1];
-}
+// function getNextBlock(
+//   block: Block,
+//   factoryGrid: GridItem[][],
+// ): Block | undefined {
+//   const { name, fx, fy, bi, bj } = block.getCoords();
+//   const item = factoryGrid[fx][fy];
+//   const key = name.includes("meta") ? "metaFactory" : "mainFactory";
+//   if (bj < item[key][bi].length - 1) {
+//     return undefined;
+//   }
+//   return item[key][bi][bj + 1];
+// }

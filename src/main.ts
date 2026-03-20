@@ -78,12 +78,10 @@ const sketch = (p: p5) => {
       (p.height - config.space.height) / 2,
     );
 
-    const availableColors = colors.filter((c) => c !== params.backgroundColor);
-
-    factoryGrid.forEach((primaryAxis, i) => {
-      primaryAxis.forEach((item, j) => {
-        const { dx, dy, x, y } = item;
-        const { mainFactory, metaFactory } = item;
+    factoryGrid.forEach((primaryAxis) => {
+      primaryAxis.forEach((item) => {
+        const { dx, dy } = item;
+        const { mainFactory } = item;
 
         p.push();
         p.translate(config.margin.x + dx, config.margin.y + dy);
@@ -95,7 +93,7 @@ const sketch = (p: p5) => {
         // );
         mainFactory.forEach((blocks) => {
           blocks.forEach((block) => {
-            block.setColor("pink") // availableColors[(i + j) % availableColors.length]);
+            block.setColor("pink"); // availableColors[(i + j) % availableColors.length]);
             block.draw(p, params, factoryGrid);
           });
         });
