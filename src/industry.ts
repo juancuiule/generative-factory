@@ -93,9 +93,53 @@ export function createIndustry(
         randomFn,
       );
 
+      mainFactory.flat().forEach((block) => block.setColor("pink"));
+
+      let metaFactory: Factory = [];
+      
+      // pick biggest block to make a meta factory inside
+      // const biggest = Block.getBiggest(mainFactory.flat());
+      // if (biggest.getSize() > 24 * 24 * 4) {
+      //   const {
+      //     props: { x, y, w: nw, h: nh, id },
+      //   } = biggest;
+      //   biggest.setType("meta");
+      //   metaFactory = createFactory(
+      //     {
+      //       width: nw,
+      //       height: nh,
+      //       steps: 2,
+      //       subSteps: 2,
+      //       direction: "vertical",
+      //       factoryName: `metaFactory-${outer}-${inner}`,
+      //       padding: config.padding,
+      //       factoryType: "meta",
+      //     },
+      //     randomFn,
+      //   );
+
+      //   grid[outer][inner] = {
+      //     mainFactory,
+      //     metaFactory,
+      //     dx,
+      //     dy,
+      //     x, // : config.margin.x + dx,
+      //     y, // : config.margin.y + dy,
+      //   };
+      // } else {
+
+      //   grid[outer][inner] = {
+      //     mainFactory,
+      //     metaFactory,
+      //     dx,
+      //     dy,
+      //     x: config.margin.x + dx,
+      //     y: config.margin.y + dy,
+      //   };
+      // }
       grid[outer][inner] = {
         mainFactory,
-        metaFactory: [],
+        metaFactory,
         dx,
         dy,
         x: config.margin.x + dx,

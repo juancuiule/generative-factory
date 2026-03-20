@@ -1,14 +1,16 @@
 import { Font, Image } from "p5";
 import { Block } from "./block";
 
-const WIDTH = 450;
-const HEIGHT = 450;
+const WIDTH = 800;
+const HEIGHT = 800;
+const GRID = 0.8;
+const MARGIN = (1 - GRID) / 2;
 
 // replace with p5
 export const config = {
   space: { width: WIDTH, height: HEIGHT },
-  grid: { width: WIDTH * 0.8, height: HEIGHT * 0.8 },
-  margin: { x: WIDTH * 0.1, y: HEIGHT * 0.1 },
+  grid: { width: WIDTH * GRID, height: HEIGHT * GRID },
+  margin: { x: WIDTH * MARGIN, y: HEIGHT * MARGIN },
   textSize: 14,
   padding: 4,
   borderRadius: 4,
@@ -40,15 +42,23 @@ export type Assets = {
 };
 
 export const params: Params = {
-  backgroundColor: "pink",
   randomIcon: "tension",
   machineNumber: 128,
+  colors: {
+    background: "pink",
+    block: "blue",
+    biggest: "black",
+  },
 };
 
 export type Params = {
-  backgroundColor: Color;
   randomIcon: Icon;
   machineNumber: number;
+  colors: {
+    background: Color;
+    block: Color;
+    biggest: Color;
+  };
 };
 
 export const assets: Assets = {

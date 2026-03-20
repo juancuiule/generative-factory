@@ -33,8 +33,8 @@ type BlockProps = {
 };
 
 export class Block {
-  private id: string;
-  private props: BlockProps;
+  public id: string;
+  public props: BlockProps;
   // private initialProps: BlockProps;
   private type: BlockType = "initial";
   // private pulley: { ccx: number; ccy: number } = { ccx: 0, ccy: 0 };
@@ -54,6 +54,10 @@ export class Block {
 
   setColor(color: Color) {
     this.props.color = color;
+  }
+
+  setType(type: BlockType) {
+    this.type = type;
   }
 
   getCoords() {
@@ -87,7 +91,7 @@ export class Block {
 
   draw(
     p: p5,
-    { backgroundColor, randomIcon, machineNumber }: Params,
+    { colors: { background }, randomIcon, machineNumber }: Params,
     _factoryGrid: GridItem[][],
   ) {
     const { x, y, w, h, color } = this.props;
@@ -135,7 +139,7 @@ export class Block {
           p.fill(palette[color]);
           p.circle(x, y, factoryConfig.nails.size);
 
-          p.stroke(palette[backgroundColor]);
+          p.stroke(background);
           p.line(cx - NAIL_SIZE / 4, cy, cx + NAIL_SIZE / 4, cy);
           p.line(cx, cy - NAIL_SIZE / 4, cx, cy + NAIL_SIZE / 4);
         });
@@ -157,7 +161,7 @@ export class Block {
         p.noStroke();
         p.fill(palette[color]);
         p.rect(x, y, w, h, config.borderRadius);
-        p.fill(palette[backgroundColor]);
+        p.fill(background);
         p.textSize(config.textSize);
         p.textAlign(p.LEFT, p.TOP);
         if (assets.font) {

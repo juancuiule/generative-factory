@@ -1,3 +1,28 @@
+const MIDI_CC_MAP = {
+  1: "seed", // K1 – composition seed (0–127 → seed value)
+  2: "paletteIndex", // K2 – palette preset (0–3)
+  3: "padding", // K3 – block padding (2–20)
+  4: "borderRadius", // K4 – border radius (0–20)
+  5: "animSpeed", // K5 – animation speed (0.01–0.3)
+  6: "iconChoice", // K6 – icon: tension / warning (< 64 = tension)
+  7: "nonHiddenRatio", // K7 – visible block ratio (0.3–1.0)
+  8: "steps", // K8 – grid subdivision steps (2–5)
+};
+
+const params = {
+  seed: 10,
+  paletteIndex: 0,
+  padding: 4,
+  borderRadius: 4,
+  animSpeed: 0.1,
+  iconChoice: 0, // 0 = tension, 1 = warning
+  nonHiddenRatio: 0.8,
+  steps: 2,
+};
+
+// Knob raw values (0–127), for the UI panel
+const knobValues = { 1: 10, 2: 0, 3: 20, 4: 20, 5: 40, 6: 0, 7: 100, 8: 10 };
+
 let gridSpaceWidth = 800;
 let gridSpaceHeight = 800;
 const marginLeft = gridSpaceWidth * 0.1;
@@ -32,6 +57,41 @@ function setRandomValues() {
   createFactories();
 }
 
+const colors = ["pink", "blue", "white", "black"];
+
+const images = {
+  tension: {
+    pink: undefined,
+    blue: undefined,
+    white: undefined,
+    black: undefined,
+  },
+  warning: {
+    pink: undefined,
+    blue: undefined,
+    white: undefined,
+    black: undefined,
+  },
+  text: {
+    pink: undefined,
+    blue: undefined,
+    white: undefined,
+    black: undefined,
+  },
+};
+
+let overPassMono;
+
+function preload() {
+  ["tension", "warning", "text"].forEach((iconName) => {
+    colors.forEach((iconColor) => {
+      images[iconName][iconColor] = loadImage(
+        `./images/${iconName}-${iconColor}.png`
+      );
+    });
+  });
+  overPassMono = loadFont("./overpass-mono.ttf");
+}
 
 const createFactory = (props) => {
   const {
@@ -83,8 +143,8 @@ const createFactory = (props) => {
         : floor(
             random(
               minBlockSize,
-              Math.max(mainBudget - minBlockSize * (steps - i), minBlockSize),
-            ),
+              Math.max(mainBudget - minBlockSize * (steps - i), minBlockSize)
+            )
           );
 
     let secondaryBudget = secondaryTotal - padding * (subSteps - 1);
@@ -98,9 +158,9 @@ const createFactory = (props) => {
                 minBlockSize,
                 Math.max(
                   secondaryBudget - minBlockSize * (subSteps - j),
-                  minBlockSize,
-                ),
-              ),
+                  minBlockSize
+                )
+              )
             );
 
       const bloque = new Block(
@@ -108,7 +168,7 @@ const createFactory = (props) => {
         position.y,
         getSizeX(mainSize, secondarySize),
         getSizeY(mainSize, secondarySize),
-        `${factoryName}-${i}-${j}`,
+        `${factoryName}-${i}-${j}`
       );
 
       grid[i][j] = bloque;
@@ -123,11 +183,75 @@ const createFactory = (props) => {
   return grid;
 };
 
+function getBlockCoords(block) {
+  const id = block.id;
+  const [name, ...coords] = id.split("-");
+  const [fx, fy, bi, bj] = coords.map((x) => Number(x));
+  return [name, fx, fy, bi, bj];
+}
+
+function getPrevBlock(block) {
+  const [name, fx, fy, bi, bj] = getBlockCoords(block);
+
+  const notFirst = bj > 0;
+  const blockFactoryConfig = factoryGrid[Number(fx)][Number(fy)];
+  const configKey = name.includes("meta") ? "metaFactory" : "factory";
+  if (notFirst) {
+    return blockFactoryConfig[configKey][bi][bj - 1];
+  }
+  return undefined;
+}
+
+function getNextBlock(block) {
+  const [name, fx, fy, bi, bj] = getBlockCoords(block);
+
+  const blockFactoryConfig = factoryGrid[Number(fx)][Number(fy)];
+  const configKey = name.includes("meta") ? "metaFactory" : "factory";
+  const levelConfig = blockFactoryConfig[configKey][bi];
+  const notLast = bj < levelConfig.length - 1;
+  if (notLast) {
+    return blockFactoryConfig[configKey][bi][bj + 1];
+  }
+  return undefined;
+}
+
+const getBlockSize = (block) => {
+  return block.props.w * block.props.h;
+};
+
+const getBiggest = (blocks) => {
+  return blocks.reduce((prev, curr) => {
+    return getBlockSize(prev) > getBlockSize(curr) ? prev : curr;
+  });
+};
+
+const getBiggestBlock = (grid) => {
+  const blocks = grid.flat();
+  return getBiggest(blocks);
+};
+
 let factoryGrid = [];
+
+const NAILS_PADDING = 4;
+const NAIL_SIZE = 10;
+const NUMBER_OF_NAILS = 0;
+
+const CABLES_PADDING = 20;
+const CABLES_DELTAS = [-CABLES_PADDING, 0, CABLES_PADDING];
+const CABLE_LENGTH = 12;
+const CABLE_PLUG_SIZE = 10;
+const NUMBER_OF_CABLES = 0;
+
+const NUMBER_OF_ANIMATED_BLOCKS = 3;
+
+const NUMBER_OF_PULLY_CABLES = 1;
 
 const FACTORY_HIDDEN_RATIO = 0.1;
 const METAFACTORY_HIDDEN_RATIO = 0.4;
 
+const PULLEY_FACTOR = 1.1;
+const PULLEY_WIDTH = 20;
+let PULLEY_SPEED = 0;
 
 function createFactories() {
   const r = 2;
@@ -192,12 +316,12 @@ function createFactories() {
     .filter((b) => b.type !== "hidden");
 
   const biggestOfAll = getBiggest(
-    everyBlock.filter((b) => b.type === "initial"),
+    everyBlock.filter((b) => b.type === "initial")
   );
   biggestOfAll.type = "biggest";
 
   const nonMetaBlocks = everyBlock.filter(
-    (block) => block.type !== "meta" && block.type !== "biggest",
+    (block) => block.type !== "meta" && block.type !== "biggest"
   );
 
   const nailsSuitableBlocks = nonMetaBlocks.filter((block) => {
@@ -284,7 +408,7 @@ function createFactories() {
   }
 
   const possibleSquarer = everyBlock.filter(
-    (b) => b.type === "initial" && getBlockSize(b) > 100 * 100,
+    (b) => b.type === "initial" && getBlockSize(b) > 100 * 100
   );
 
   if (possibleSquarer.length > 0) {
@@ -303,7 +427,7 @@ function createFactories() {
     (b) =>
       b.type === "initial" &&
       b.props.w > 100 &&
-      b.props.h > 4 * padding + 2 * 14,
+      b.props.h > 4 * padding + 2 * 14
   );
   if (labelBlock) {
     labelBlock.type = "label";
@@ -318,8 +442,10 @@ function drawComposition() {
     const { dx, dy, x, y, factory, metaFactory } = config;
     push();
     translate(marginLeft + dx, marginTop + dy);
+    circle(0, 0, 20)
     factory.flat().forEach((_) => _.display());
     translate(x, y);
+    circle(0, 0, 10)
     metaFactory.flat().forEach((_) => _.display());
     pop();
   });
@@ -385,6 +511,101 @@ function drawComposition() {
   pop();
 }
 
+let seed = 0;
+
+function setup() {
+  // createCanvas(window.innerWidth, window.innerHeight);
+  createCanvas(800, 800);
+  randomSeed(seed);
+  setRandomValues();
+
+  // Build panel and init MIDI after DOM ready
+  setTimeout(() => {
+    buildPanel();
+    initMIDI();
+  }, 100);
+  // noLoop();
+}
+
+function newFactory() {
+  seed += 1;
+  cycle = 0;
+  randomSeed(seed);
+  setRandomValues();
+  drawComposition();
+  frameCount = 0;
+  // loop();
+}
+
+function touchEnded() {
+  newFactory();
+}
+
+function mouseClicked() {
+  newFactory();
+  // saveCanvas(`factory_${seed}_${width}x${height}`);
+}
+
+function keyPressed() {
+  if (key == "n") {
+    newFactory();
+  }
+  if (key == "s") {
+    saveCanvas(`factory_${machineNumber}_${width}x${height}`);
+  }
+  if (key == "g") {
+    let svg = "";
+    factoryGrid.flat().forEach((config) => {
+      const { dx, dy, x, y, factory, metaFactory } = config;
+      push();
+      factory.flat().forEach((_) => {
+        const blockSvg = _.getSvg(marginLeft + dx, marginTop + dy);
+        svg += blockSvg;
+      });
+      metaFactory.flat().forEach((_) => {
+        const blockSvg = _.getSvg(marginLeft + dx + x, marginTop + dy + y);
+        svg += blockSvg;
+      });
+      pop();
+    });
+
+    svg = `
+    <svg width="800" height="800">
+      <rect x="0" y="0" width="800" height="800" fill="${backgroundColor}"></rect>
+      ${svg}
+    </svg>`;
+
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "bouba-print.svg";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+}
+let cycle = 0;
+let post0 = true;
+
+function draw() {
+  drawComposition();
+  if (Math.round((frameCount * PULLEY_SPEED) % TAU) == 0) {
+    if (post0) {
+      cycle = cycle + 1;
+      post0 = false;
+    }
+  } else {
+    post0 = true;
+  }
+  if (frameCount < frames_needed + 1) {
+    // saveCanvas(`factory-${seed}-frame-${frameCount}.png`)
+  } else {
+    // noLoop();
+  }
+}
+
 class Block {
   constructor(x, y, w, h, id) {
     const c = random(palette.filter((c) => c !== backgroundColor));
@@ -393,6 +614,17 @@ class Block {
     this.initialProps = { x, y, w, h, c, id };
     this.type = "initial";
     this.pulley = { ccx: 0, ccy: 0 };
+  }
+
+  getSvg(tx, ty) {
+    const { x, y, w, h, c } = this.props;
+    if (!["hidden", "meta"].includes(this.type)) {
+      return `<rect rx="4" x="${tx + x}" y="${
+        ty + y
+      }" width="${w}" height="${h}" fill="${c}"></rect>`;
+    } else {
+      return "";
+    }
   }
 
   display() {
@@ -414,11 +646,11 @@ class Block {
           p_space += prevBlock.props.w + padding;
         }
         const dx = map(
-          cos(frameCount * PULLEY_SPEED),
+          cos((knobValues["1"] / 127) * PI),
           -1,
           1,
           -p_space,
-          n_space,
+          n_space
         );
         this.props.x = this.initialProps.x + dx;
         stroke("#f4f4f4");
@@ -427,7 +659,7 @@ class Block {
           this.props.x + w / 2,
           this.props.y + h / 2,
           this.initialProps.x + w - padding,
-          this.props.y + h / 2,
+          this.props.y + h / 2
         );
       } else {
         let n_space = 0;
@@ -441,11 +673,11 @@ class Block {
           p_space += prevBlock.props.h + padding;
         }
         const dy = map(
-          cos(frameCount * PULLEY_SPEED),
+          cos((knobValues["2"] / 127) * PI),
           -1,
           1,
           -p_space,
-          n_space,
+          n_space
         );
         this.props.y = this.initialProps.y + dy;
         stroke("#f4f4f4");
@@ -454,9 +686,30 @@ class Block {
           this.props.x + w / 2,
           this.props.y + h / 2,
           this.props.x + w / 2,
-          this.initialProps.y - p_space + padding,
+          this.initialProps.y - p_space + padding
         );
       }
+    }
+
+    const xLeft = x + NAILS_PADDING + NAIL_SIZE / 2;
+    const xRight = x + w - NAILS_PADDING - NAIL_SIZE / 2;
+    const yTop = y + NAILS_PADDING + NAIL_SIZE / 2;
+    const yBottom = y + h - NAILS_PADDING - NAIL_SIZE / 2;
+
+    const top_left = { x: xLeft, y: yTop };
+    const top_right = { x: xRight, y: yTop };
+    const bottom_left = { x: xLeft, y: yBottom };
+    const bottom_right = { x: xRight, y: yBottom };
+
+    const corners = [top_left, top_right, bottom_left, bottom_right];
+
+    if (this.type === "hidden") {
+      push();
+      stroke("#f4f4f4");
+      noStroke();
+      noFill();
+      rect(x, y, w, h, borderRadius);
+      pop();
     }
 
     if (this.type === "biggest") {
@@ -481,9 +734,9 @@ class Block {
       circle(cx, cy, maxR);
 
       const ccx =
-        cx + (minR / 2 + PULLEY_WIDTH / 4) * cos(frameCount * PULLEY_SPEED);
+        cx + (minR / 2 + PULLEY_WIDTH / 4) * cos((knobValues["3"] / 127) * TAU);
       const ccy =
-        cy + (minR / 2 + PULLEY_WIDTH / 4) * sin(frameCount * PULLEY_SPEED);
+        cy + (minR / 2 + PULLEY_WIDTH / 4) * sin((knobValues["3"] / 127) * TAU);
 
       this.pulley.ccx = ccx;
       this.pulley.ccy = ccy;
@@ -491,6 +744,22 @@ class Block {
       fill("#f4f4f4");
       circle(ccx, ccy, NAIL_SIZE);
 
+      pop();
+    }
+
+    if (this.type === "nails") {
+      push();
+      strokeWeight(2);
+      strokeCap(ROUND);
+      corners.forEach(({ x: cx, y: cy }) => {
+        noStroke();
+        fill(c);
+        circle(cx, cy, NAIL_SIZE);
+
+        stroke(backgroundColor);
+        line(cx - NAIL_SIZE / 4, cy, cx + NAIL_SIZE / 4, cy);
+        line(cx, cy - NAIL_SIZE / 4, cx, cy + NAIL_SIZE / 4);
+      });
       pop();
     }
 
@@ -553,6 +822,22 @@ class Block {
       pop();
     }
 
+    if (this.type === "icon") {
+      push();
+      noStroke();
+      fill(c);
+      rect(x, y, w, h, borderRadius);
+      const r = Math.min(w, h) * 0.8;
+      image(
+        images[randomIcon][getIconColor(c)],
+        x + w / 2 - r / 2,
+        y + h / 2 - r / 2,
+        r,
+        r
+      );
+      pop();
+    }
+
     if (
       this.type == "initial" ||
       this.type == "cables_prev" ||
@@ -593,4 +878,179 @@ class Block {
       pop();
     }
   }
+}
+
+/* asdfasdf */
+let midiAccess = null;
+let midiConnected = false;
+
+function initMIDI() {
+  if (navigator.requestMIDIAccess) {
+    navigator.requestMIDIAccess().then(
+      (access) => {
+        midiAccess = access;
+        midiConnected = true;
+        bindMIDIInputs();
+        access.onstatechange = () => bindMIDIInputs();
+        updateMIDIStatus("connected");
+      },
+      () => updateMIDIStatus("denied")
+    );
+  } else {
+    updateMIDIStatus("unsupported");
+  }
+}
+
+function bindMIDIInputs() {
+  for (const input of midiAccess.inputs.values()) {
+    input.onmidimessage = onMIDIMessage;
+  }
+}
+
+function onMIDIMessage(event) {
+  const [status, cc, value] = event.data;
+  const isCC = (status & 0xf0) === 0xb0;
+  
+  if (cc == "40") {
+    console.log("new")
+    newFactory()
+  }
+  
+  if (!isCC) return;
+
+  knobValues[cc] = value;
+  updateKnobPanel();
+
+  const paramName = MIDI_CC_MAP[cc];
+  if (!paramName) return;
+}
+
+function applyMIDI(paramName, value, cc) {}
+
+// ─── PANEL UI ────────────────────────────────────────────────────────────────
+function buildPanel() {
+  const panel = document.createElement("div");
+  panel.id = "midi-panel";
+  panel.style.cssText = `
+    position: fixed; top: 16px; right: 16px; z-index: 9999;
+    background: rgba(19,19,19,0.92); color: #fdd7d6;
+    border-radius: 10px; padding: 14px 16px; width: 260px;
+    font-family: monospace; font-size: 12px;
+    backdrop-filter: blur(6px);
+opacity: 0;
+  `;
+
+  const title = document.createElement("div");
+  title.style.cssText =
+    "font-size:13px; font-weight:bold; margin-bottom:10px; color:#5e5efc; letter-spacing:1px;";
+  title.textContent = "AKAI MPK MINI";
+  panel.appendChild(title);
+
+  const statusEl = document.createElement("div");
+  statusEl.id = "midi-status";
+  statusEl.style.cssText = "font-size:11px; margin-bottom:10px; color:#888;";
+  statusEl.textContent = "Waiting for MIDI…";
+  panel.appendChild(statusEl);
+
+  const knobsGrid = document.createElement("div");
+  knobsGrid.id = "knob-grid";
+  knobsGrid.style.cssText =
+    "display:grid; grid-template-columns:1fr 1fr; gap:8px;";
+
+  const knobDefs = [
+    { cc: 1, label: "K1 seed" },
+    { cc: 2, label: "K2 palette" },
+    { cc: 3, label: "K3 padding" },
+    { cc: 4, label: "K4 radius" },
+    { cc: 5, label: "K5 speed" },
+    { cc: 6, label: "K6 icon" },
+    { cc: 7, label: "K7 density" },
+    { cc: 8, label: "K8 steps" },
+  ];
+
+  knobDefs.forEach(({ cc, label }) => {
+    const cell = document.createElement("div");
+    cell.style.cssText =
+      "background:rgba(255,255,255,0.05); border-radius:6px; padding:6px 8px;";
+
+    const lbl = document.createElement("div");
+    lbl.style.cssText = "color:#888; font-size:10px; margin-bottom:4px;";
+    lbl.textContent = label;
+
+    const bar = document.createElement("div");
+    bar.style.cssText =
+      "background:#222; border-radius:3px; height:4px; margin-bottom:4px;";
+
+    const fill = document.createElement("div");
+    fill.id = `knob-fill-${cc}`;
+    fill.style.cssText = `background:#5e5efc; border-radius:3px; height:4px; width:${Math.round(
+      (knobValues[cc] / 127) * 100
+    )}%;`;
+    bar.appendChild(fill);
+
+    const val = document.createElement("div");
+    val.id = `knob-val-${cc}`;
+    val.style.cssText = "color:#fdd7d6; font-size:11px;";
+    val.textContent = knobValues[cc];
+
+    // Manual slider fallback
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = 0;
+    slider.max = 127;
+    slider.value = knobValues[cc];
+    slider.style.cssText = "width:100%; margin-top:4px; accent-color:#5e5efc;";
+    slider.addEventListener("input", (e) => {
+      const v = parseInt(e.target.value);
+      knobValues[cc] = v;
+      const paramName = MIDI_CC_MAP[cc];
+      applyMIDI(paramName, v, cc);
+      updateKnobPanel();
+    });
+
+    cell.appendChild(lbl);
+    cell.appendChild(bar);
+    cell.appendChild(val);
+    cell.appendChild(slider);
+    knobsGrid.appendChild(cell);
+  });
+
+  panel.appendChild(knobsGrid);
+
+  const hint = document.createElement("div");
+  hint.style.cssText =
+    "margin-top:10px; color:#555; font-size:10px; line-height:1.4;";
+  hint.textContent =
+    "Turn knobs on your AKAI MPK Mini, or drag sliders above. Click canvas to reseed.";
+  panel.appendChild(hint);
+
+  document.body.appendChild(panel);
+}
+
+function updateMIDIStatus(state) {
+  const el = document.getElementById("midi-status");
+  if (!el) return;
+  const states = {
+    connected: ["● MIDI connected", "#5e5efc"],
+    denied: ["✕ MIDI access denied", "#e24b4a"],
+    unsupported: ["◯ Web MIDI not supported", "#888"],
+  };
+  const [text, color] = states[state] || ["?", "#888"];
+  el.textContent = text;
+  el.style.color = color;
+}
+
+function updateKnobPanel() {
+  Object.entries(knobValues).forEach(([cc, val]) => {
+    const fill = document.getElementById(`knob-fill-${cc}`);
+    const valEl = document.getElementById(`knob-val-${cc}`);
+    const pct = Math.round((val / 127) * 100);
+    if (fill) fill.style.width = pct + "%";
+    if (valEl) valEl.textContent = val;
+    // sync slider
+    const slider = fill?.parentElement?.parentElement?.querySelector(
+      "input[type=range]"
+    );
+    if (slider) slider.value = val;
+  });
 }

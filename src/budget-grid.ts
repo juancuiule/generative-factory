@@ -51,7 +51,7 @@ type Props = {
 };
 
 export function createGrid(props: Props, randomFn: RandomFn) {
-  const { direction, size, minBlockSize = 24 } = props;
+  const { direction, size, minBlockSize = 12 } = props;
   const { steps, subSteps, padding } = props;
 
   const grid: Cell[][] = [];
