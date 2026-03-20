@@ -1,7 +1,7 @@
 import { Block } from "./block";
 import { createGrid } from "./budget-grid";
 import { config, Factory, GridItem } from "./config";
-import { RandomFn } from "./types";
+import { RandomFn, RandomFnBuilder } from "./types";
 
 type FactoryProps = {
   width: number;
@@ -46,7 +46,7 @@ type Def = {
 export function createIndustry(
   axis: "rows" | "cols",
   defs: Def[][],
-  randomFn: RandomFn,
+  randomFn: RandomFnBuilder,
 ) {
   const grid: GridItem[][] = [];
   const outerCount = defs.length;
@@ -90,13 +90,13 @@ export function createIndustry(
           padding: config.padding,
           factoryType: "main",
         },
-        randomFn,
+        randomFn(outer * 4 + inner),
       );
 
       mainFactory.flat().forEach((block) => block.setColor("pink"));
 
       let metaFactory: Factory = [];
-      
+
       // pick biggest block to make a meta factory inside
       // const biggest = Block.getBiggest(mainFactory.flat());
       // if (biggest.getSize() > 24 * 24 * 4) {

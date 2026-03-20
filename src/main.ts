@@ -53,6 +53,15 @@ const industryParams: IndustryParams = {
 };
 
 const sketch = (p: p5) => {
+  function mulberry32(a: number) {
+    return function () {
+      var t = (a += 0x6d2b79f5);
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
   function loadAssets() {
     icons.forEach((icon) => {
       colors.forEach((color) => {
@@ -66,10 +75,16 @@ const sketch = (p: p5) => {
 
   let randomFnCalls = 0;
 
-  const random: typeof p.random = (...args: Parameters<typeof p.random>) => {
-    randomFnCalls++;
-    return p.random(...args);
-  };
+  const seeds = (() => {
+    p.randomSeed(10);
+    return Array.from({ length: 16 }, () => mulberry32(p.random() * 100));
+  })();
+
+  const random: (grid: number) => (min: number, max: number) => number =
+    (grid: number) => (min: number, max: number) => {
+      const rand = seeds[grid](); // returns a float between 0 and 1
+      return min + rand * (max - min);
+    };
 
   // function randomFn(min: number, max: number) {
   //   randomFnCalls++;
@@ -129,7 +144,7 @@ const sketch = (p: p5) => {
   p.setup = () => {
     p.createCanvas(p.windowWidth, p.windowHeight);
     p.randomSeed(25);
-    p.frameRate(1);
+    // p.frameRate(1);
     setRandomValues();
   };
 
@@ -174,11 +189,12 @@ const sketch = (p: p5) => {
         const biggest = Block.getBiggest(mainFactory.flat());
         mainFactory.forEach((blocks) => {
           blocks.forEach((block) => {
-            if (block.id === biggest.id) {
-              block.setColor(params.colors.biggest);
-            } else {
-              block.setColor(params.colors.block);
-            }
+            // if (block.id === biggest.id) {
+            //   block.setColor(params.colors.biggest);
+            // } else {
+            //   block.setColor(params.colors.block);
+            // }
+            block.setColor(params.colors.block);
 
             block.draw(p, params, factoryGrid);
           });
