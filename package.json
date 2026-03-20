@@ -1,0 +1,19 @@
+{
+  "name": "generative-factory",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/p5": "^1.7.7",
+    "typescript": "^5.3.3",
+    "vite": "^5.4.2"
+  },
+  "dependencies": {
+    "p5": "^1.9.4"
+  }
+}
