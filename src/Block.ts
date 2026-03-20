@@ -44,12 +44,16 @@ export class Block {
     y: number,
     width: number,
     height: number,
-    color: Color,
     id: string,
+    // color: Color,
   ) {
     this.id = id;
-    this.props = { x, y, w: width, h: height, color, id };
+    this.props = { x, y, w: width, h: height, id, color: "black" };
     this.initialProps = { ...this.props };
+  }
+
+  setColor(color: Color) {
+    this.props.color = color;
   }
 
   getCoords() {
@@ -88,7 +92,7 @@ export class Block {
   ) {
     const { x, y, w, h, color } = this.props;
     const previous = getPrevBlock(this, factoryGrid);
-    const next = getNextBlock(this, factoryGrid);
+    // const next = getNextBlock(this, factoryGrid);
 
     const { size: NAIL_SIZE } = factoryConfig.nails;
 
@@ -203,6 +207,8 @@ function getPrevBlock(
   block: Block,
   factoryGrid: GridItem[][],
 ): Block | undefined {
+  console.log("getPrevBlock", block);
+  
   const { name, fx, fy, bi, bj } = block.getCoords();
   if (bj > 0) {
     return undefined;
