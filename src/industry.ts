@@ -51,20 +51,21 @@ export function createIndustry(
   const grid: GridItem[][] = [];
   const outerCount = defs.length;
 
+  const outerDimension = axis === "rows" ? "height" : "width";
+  const innerDimension = axis === "rows" ? "width" : "height";
+
   for (let outer = 0; outer < outerCount; outer++) {
     const innerCount = defs[outer].length;
     grid[outer] = [];
 
     // Resolve which dimension belongs to outer vs inner based on axis
     const outerSize =
-      axis === "rows"
-        ? (config.grid.height - (outerCount - 1) * config.padding) / outerCount
-        : (config.grid.width - (outerCount - 1) * config.padding) / outerCount;
+      (config.grid[outerDimension] - (outerCount - 1) * config.padding) /
+      outerCount;
 
     const innerSize =
-      axis === "rows"
-        ? (config.grid.width - (innerCount - 1) * config.padding) / innerCount
-        : (config.grid.height - (innerCount - 1) * config.padding) / innerCount;
+      (config.grid[innerDimension] - (innerCount - 1) * config.padding) /
+      innerCount;
 
     const outerOffset = outer * outerSize + outer * config.padding;
 
