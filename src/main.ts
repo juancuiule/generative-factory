@@ -37,21 +37,22 @@ const industryParams: IndustryParams = {
       { steps: 4, subSteps: 4, direction: "horizontal" },
       { steps: 4, subSteps: 4, direction: "horizontal" },
     ],
-    [
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-    ],
-    [
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-    ],
+    // [
+    //   { steps: 4, subSteps: 4, direction: "horizontal" },
+    //   { steps: 4, subSteps: 4, direction: "horizontal" },
+    //   { steps: 4, subSteps: 4, direction: "horizontal" },
+    //   { steps: 4, subSteps: 4, direction: "horizontal" },
+    // ],
+    // [
+    //   { steps: 4, subSteps: 4, direction: "horizontal" },
+    //   { steps: 4, subSteps: 4, direction: "horizontal" },
+    //   { steps: 4, subSteps: 4, direction: "horizontal" },
+    //   { steps: 4, subSteps: 4, direction: "horizontal" },
+    // ],
   ],
 };
 
+const _initial = industryParams;
 const sketch = (p: p5) => {
   function mulberry32(a: number) {
     return function () {
@@ -73,12 +74,73 @@ const sketch = (p: p5) => {
     assets.font = p.loadFont("/assets/fonts/OverpassMono.ttf");
   }
 
-  let randomFnCalls = 0;
+  let midiAccess: MIDIAccess | null = null;
+  let midiConnected = false;
+  function updateMIDIStatus(status: "connected" | "denied" | "unsupported") {
+    console.log(`MIDI status: ${status}`);
+  }
 
-  const seeds = (() => {
-    p.randomSeed(10);
-    return Array.from({ length: 16 }, () => mulberry32(p.random() * 100));
-  })();
+  function initMIDI() {
+    if (navigator.requestMIDIAccess) {
+      navigator.requestMIDIAccess().then(
+        (access) => {
+          midiAccess = access;
+          midiConnected = true;
+          bindMIDIInputs();
+          access.onstatechange = () => bindMIDIInputs();
+          updateMIDIStatus("connected");
+        },
+        () => updateMIDIStatus("denied"),
+      );
+    } else {
+      updateMIDIStatus("unsupported");
+    }
+  }
+
+  let highlight = 0;
+
+  function onMIDIMessage(message: MIDIMessageEvent) {
+    if (!message.data) return;
+    const [status, cc, value] = message.data;
+    console.log(
+      `MIDI message received: status=${status}, cc=${cc}, value=${value}`,
+    );
+
+    highlight = {
+      40: 0,
+      41: 1,
+      42: 2,
+      43: 3,
+      36: 4,
+      37: 5,
+      38: 6,
+      39: 7,
+
+      48: 8,
+      49: 9,
+      50: 10,
+      51: 11,
+      44: 12,
+      45: 13,
+      46: 14,
+      47: 15,
+    }[cc]
+  }
+
+  function bindMIDIInputs() {
+    if (!midiAccess) return;
+    for (const input of midiAccess.inputs.values()) {
+      input.onmidimessage = onMIDIMessage;
+    }
+  }
+
+  const buildSeeds = () =>
+    (() => {
+      // p.randomSeed(10);
+      return Array.from({ length: 16 }).map((_, i) => mulberry32(i));
+    })();
+
+  let seeds = buildSeeds();
 
   const random: (grid: number) => (min: number, max: number) => number =
     (grid: number) => (min: number, max: number) => {
@@ -86,35 +148,26 @@ const sketch = (p: p5) => {
       return min + rand * (max - min);
     };
 
-  // function randomFn(min: number, max: number) {
-  //   randomFnCalls++;
-  //   return Math.floor(p.random(min, max));
-  // }
-
-  function recreateGrid() {
-    factoryGrid = createIndustry(
-      industryParams.axis,
-      industryParams.defs,
-      random,
-    );
+  function recreateGrid(params: IndustryParams = industryParams) {
+    seeds = buildSeeds();
+    factoryGrid = createIndustry(params.axis, params.defs, random);
   }
 
   function randomizeColors() {
-    // params.colors.background = random([...colors.filter((c) => c !== "white")]);
-    // params.colors.block = random([
-    //   ...colors.filter((c) => c !== params.colors.background && c !== "white"),
-    // ]);
-    // params.colors.biggest = random([
-    //   ...colors.filter(
-    //     (c) =>
-    //       c !== params.colors.background &&
-    //       c !== params.colors.block &&
-    //       c !== "white",
-    //   ),
-    // ]);
-    params.colors.background = "blue";
-    params.colors.block = "pink";
-    params.colors.biggest = "black";
+    params.colors.background = p.random([
+      ...colors.filter((c) => c !== "white"),
+    ]);
+    params.colors.block = p.random([
+      ...colors.filter((c) => c !== params.colors.background && c !== "white"),
+    ]);
+    params.colors.biggest = p.random([
+      ...colors.filter(
+        (c) =>
+          c !== params.colors.background &&
+          c !== params.colors.block &&
+          c !== "white",
+      ),
+    ]);
   }
 
   function setRandomValues() {
@@ -139,11 +192,30 @@ const sketch = (p: p5) => {
         .add(params.colors, key, [...colors])
         .onChange(() => p.redraw());
     });
+
+    const gridsFolder = paramsFolder.addFolder("Grids");
+    industryParams.defs.forEach((row, rowIndex) => {
+      const rowFolder = gridsFolder.addFolder(`Row ${rowIndex + 1}`);
+      row.forEach((cell, cellIndex) => {
+        const cellFolder = rowFolder.addFolder(`Cell ${cellIndex + 1}`);
+        cellFolder.add(cell, "steps", 1, 4, 1).onChange(() => {
+          recreateGrid();
+          p.redraw();
+        });
+        cellFolder.add(cell, "subSteps", 1, 4, 1).onChange(() => {
+          recreateGrid();
+          p.redraw();
+        });
+      });
+    });
+
+    paramsFolder.close();
   };
 
   p.setup = () => {
     p.createCanvas(p.windowWidth, p.windowHeight);
     p.randomSeed(25);
+    initMIDI();
     // p.frameRate(1);
     setRandomValues();
   };
@@ -165,10 +237,6 @@ const sketch = (p: p5) => {
       randomizeColors();
       p.redraw();
     }
-
-    if (p.key === "i") {
-      console.log(randomFnCalls);
-    }
   };
 
   p.draw = () => {
@@ -179,8 +247,8 @@ const sketch = (p: p5) => {
       (p.height - config.space.height) / 2,
     );
 
-    factoryGrid.forEach((primaryAxis) => {
-      primaryAxis.forEach((item) => {
+    factoryGrid.forEach((primaryAxis, i) => {
+      primaryAxis.forEach((item, j) => {
         const { dx, dy, x, y } = item;
         const { mainFactory, metaFactory } = item;
 
@@ -195,6 +263,9 @@ const sketch = (p: p5) => {
             //   block.setColor(params.colors.block);
             // }
             block.setColor(params.colors.block);
+            if (i * 4 + j === highlight) {
+              block.setColor(params.colors.biggest);
+            }
 
             block.draw(p, params, factoryGrid);
           });
