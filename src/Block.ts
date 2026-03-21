@@ -13,10 +13,11 @@ import {
 type BlockType =
   | "initial"
   | "hidden"
-  | "animated"
+  | "animated-prev"
+  | "animated-next"
   | "meta"
   | "biggest"
-  | "nails"
+  | "screws"
   | "cables"
   | "icon"
   | "cables-prev"
@@ -32,12 +33,25 @@ type BlockProps = {
   id: string;
 };
 
+function mulberry32(a: number) {
+  return function () {
+    var t = (a += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 export class Block {
+  private seed = (() => {
+    const gen = mulberry32(100);
+    return Math.floor(gen() * 100);
+  })();
   public id: string;
   public props: BlockProps;
-  // private initialProps: BlockProps;
-  private type: BlockType = "initial";
-  // private pulley: { ccx: number; ccy: number } = { ccx: 0, ccy: 0 };
+  private initialProps: BlockProps;
+  public type: BlockType = "initial";
+  private pulley: { ccx: number; ccy: number } = { ccx: 0, ccy: 0 };
 
   constructor(
     x: number,
@@ -49,7 +63,7 @@ export class Block {
   ) {
     this.id = id;
     this.props = { x, y, w: width, h: height, id, color: "black" };
-    // this.initialProps = { ...this.props };
+    this.initialProps = { ...this.props };
   }
 
   setColor(color: Color) {
@@ -73,13 +87,13 @@ export class Block {
 
   getNailsCorners() {
     const { x, y, w, h } = this.props;
-    const NAILS_PADDING = factoryConfig.nails.padding;
-    const NAIL_SIZE = factoryConfig.nails.size;
+    const SCREWS_PADDING = factoryConfig.screws.padding;
+    const SCREWS_SIZE = factoryConfig.screws.size;
 
-    const xLeft = x + NAILS_PADDING + NAIL_SIZE / 2;
-    const xRight = x + w - NAILS_PADDING - NAIL_SIZE / 2;
-    const yTop = y + NAILS_PADDING + NAIL_SIZE / 2;
-    const yBottom = y + h - NAILS_PADDING - NAIL_SIZE / 2;
+    const xLeft = x + SCREWS_PADDING + SCREWS_SIZE / 2;
+    const xRight = x + w - SCREWS_PADDING - SCREWS_SIZE / 2;
+    const yTop = y + SCREWS_PADDING + SCREWS_SIZE / 2;
+    const yBottom = y + h - SCREWS_PADDING - SCREWS_SIZE / 2;
 
     const top_left = { x: xLeft, y: yTop };
     const top_right = { x: xRight, y: yTop };
@@ -92,21 +106,20 @@ export class Block {
   draw(
     p: p5,
     { colors: { background }, randomIcon, machineNumber }: Params,
-    _factoryGrid: GridItem[][],
+    factoryGrid: GridItem[][],
   ) {
     const { x, y, w, h, color } = this.props;
-    // const previous = getPrevBlock(this, factoryGrid);
-    // const next = getNextBlock(this, factoryGrid);
+    const previous = getPrevBlock(this, factoryGrid);
+    const next = getNextBlock(this, factoryGrid);
 
-    const { size: NAIL_SIZE } = factoryConfig.nails;
+    const { size: SCREWS_SIZE } = factoryConfig.screws;
 
     p.push();
     switch (this.type) {
       case "hidden": {
-        p.stroke(palette.white);
-        p.noStroke();
-        p.noFill();
-        p.rect(x, y, w, h);
+        // p.noStroke();
+        // p.noFill();
+        // p.rect(x, y, w, h);
         break;
       }
       case "biggest": {
@@ -128,20 +141,38 @@ export class Block {
         const maxR = minR + PULLEY_WIDTH;
         p.circle(cx, cy, minR);
         p.circle(cx, cy, maxR);
+
+        const ccx =
+          cx +
+          (minR / 2 + PULLEY_WIDTH / 4) *
+            p.cos((p.frameCount * this.seed) / 100);
+        const ccy =
+          cy +
+          (minR / 2 + PULLEY_WIDTH / 4) *
+            p.sin((p.frameCount * this.seed) / 100);
+
+        this.pulley.ccx = ccx;
+        this.pulley.ccy = ccy;
+
+        p.fill(palette.white);
+        p.circle(ccx, ccy, factoryConfig.screws.size);
+
+        // const endCoords = getPulleyEndCoords(factoryGrid);
+        // p.line(ccx, ccy, endCoords.x, endCoords.y);
         break;
       }
-      case "nails": {
+      case "screws": {
         p.strokeWeight(2);
         p.strokeCap(p.ROUND);
 
         this.getNailsCorners().forEach(({ x: cx, y: cy }) => {
           p.noStroke();
           p.fill(palette[color]);
-          p.circle(x, y, factoryConfig.nails.size);
+          p.circle(cx, cy, factoryConfig.screws.size);
 
           p.stroke(background);
-          p.line(cx - NAIL_SIZE / 4, cy, cx + NAIL_SIZE / 4, cy);
-          p.line(cx, cy - NAIL_SIZE / 4, cx, cy + NAIL_SIZE / 4);
+          p.line(cx - SCREWS_SIZE / 4, cy, cx + SCREWS_SIZE / 4, cy);
+          p.line(cx, cy - SCREWS_SIZE / 4, cx, cy + SCREWS_SIZE / 4);
         });
         break;
       }
@@ -161,7 +192,7 @@ export class Block {
         p.noStroke();
         p.fill(palette[color]);
         p.rect(x, y, w, h, config.borderRadius);
-        p.fill(background);
+        p.fill(palette[background]);
         p.textSize(config.textSize);
         p.textAlign(p.LEFT, p.TOP);
         if (assets.font) {
@@ -181,22 +212,137 @@ export class Block {
         p.rect(x, y, w, h, config.borderRadius);
 
         p.fill(palette.white);
-        p.circle(x + w / 2, y + h / 2, NAIL_SIZE);
+        p.circle(x + w / 2, y + h / 2, SCREWS_SIZE);
         break;
       }
-      case "initial":
-      case "cables-prev":
-      case "animated": {
+      case "cables": {
         p.noStroke();
         p.fill(palette[color]);
         p.rect(x, y, w, h, config.borderRadius);
-        if (this.type === "animated") {
-          p.fill(palette.white);
-          p.circle(x + w / 2, y + h / 2, NAIL_SIZE);
+
+        p.stroke(palette[background]);
+        p.strokeWeight(2);
+        p.noFill();
+
+        const x0 = w / 2;
+        const y0 = h / 2;
+
+        const { cables } = factoryConfig;
+
+        if (this.id.includes("meta")) {
+          cables.deltas.forEach((delta) => {
+            const dot_y = y0 + y + delta;
+            const minX = x - cables.length - config.padding;
+            const maxX = x + cables.length;
+            p.circle(minX, dot_y, cables.plugSize);
+            p.circle(maxX, dot_y, cables.plugSize);
+            p.line(minX, dot_y, maxX, dot_y);
+          });
+        } else {
+          cables.deltas.forEach((delta) => {
+            const dot_x = x0 + x + delta;
+            const minY = y - cables.length - config.padding;
+            const maxY = y + cables.length;
+            p.circle(dot_x, minY, cables.plugSize);
+            p.circle(dot_x, maxY, cables.plugSize);
+            p.line(dot_x, minY, dot_x, maxY);
+          });
         }
         break;
       }
+      case "initial":
+      case "cables-prev": {
+        p.noStroke();
+        p.fill(palette[color]);
+        p.rect(x, y, w, h, config.borderRadius);
+        break;
+      }
     }
+
+    if (this.type.startsWith("animated")) {
+      // Strat drawing the connection to the previous/next block
+      p.stroke(palette.white);
+      p.strokeWeight(2);
+      if (this.type === "animated-prev" && previous) {
+        // If meta animates horizontally
+        if (this.id.includes("meta")) {
+          const space = previous.props.w + config.padding;
+          const dx = p.map(
+            p.cos((p.frameCount * this.seed) / 1000),
+            -1,
+            1,
+            -space,
+            0,
+          );
+          this.props.x = this.initialProps.x + dx;
+          p.line(
+            this.props.x + w / 2,
+            this.props.y + h / 2,
+            this.initialProps.x + w - config.padding,
+            this.props.y + h / 2,
+          );
+        } else {
+          const space = previous.props.h + config.padding;
+          const dy = p.map(
+            p.cos((p.frameCount * this.seed) / 1000),
+            -1,
+            1,
+            -space,
+            0,
+          );
+          this.props.y = this.initialProps.y + dy;
+          p.line(
+            this.props.x + w / 2,
+            this.props.y + h / 2,
+            this.props.x + w / 2,
+            this.initialProps.y - space + config.padding,
+          );
+        }
+      }
+      if (this.type === "animated-next" && next) {
+        // If meta animates horizontally
+        if (this.id.includes("meta")) {
+          const space = next.props.w + config.padding;
+          const dx = p.map(
+            p.cos((p.frameCount * this.seed) / 1000),
+            -1,
+            1,
+            0,
+            space,
+          );
+          this.props.x = this.initialProps.x + dx;
+          p.line(
+            this.props.x + w / 2,
+            this.props.y + h / 2,
+            this.initialProps.x + config.padding,
+            this.props.y + h / 2,
+          );
+        } else {
+          const space = next.props.h + config.padding;
+          const dy = p.map(
+            p.cos((p.frameCount * this.seed) / 1000),
+            -1,
+            1,
+            0,
+            space,
+          );
+          this.props.y = this.initialProps.y + dy;
+          p.line(
+            this.props.x + w / 2,
+            this.props.y + h / 2,
+            this.props.x + w / 2,
+            this.initialProps.y + config.padding,
+          );
+        }
+      }
+
+      p.noStroke();
+      p.fill(palette[color]);
+      p.rect(x, y, w, h, config.borderRadius);
+      p.fill(palette.white);
+      p.circle(x + w / 2, y + h / 2, factoryConfig.screws.size);
+    }
+
     p.pop();
   }
 
@@ -205,30 +351,70 @@ export class Block {
       block.getSize() > biggest.getSize() ? block : biggest,
     );
   }
+
+  static getSquarer(blocks: Block[]): Block | undefined {
+    return blocks.reduce((prev, curr) => {
+      return Math.abs(1 - prev.props.w / prev.props.h) <
+        Math.abs(1 - curr.props.w / curr.props.h)
+        ? prev
+        : curr;
+    });
+  }
 }
 
-// function getPrevBlock(
-//   block: Block,
-//   factoryGrid: GridItem[][],
-// ): Block | undefined {
-//   const { name, fx, fy, bi, bj } = block.getCoords();
-//   if (bj > 0) {
-//     return undefined;
-//   }
-//   const item = factoryGrid[fx][fy];
-//   const key = name.includes("meta") ? "metaFactory" : "mainFactory";
-//   return item[key][bi][bj - 1];
-// }
+export function getPrevBlock(
+  block: Block,
+  factoryGrid: GridItem[][],
+): Block | undefined {
+  const { name, fx, fy, bi, bj } = block.getCoords();
 
-// function getNextBlock(
-//   block: Block,
-//   factoryGrid: GridItem[][],
-// ): Block | undefined {
-//   const { name, fx, fy, bi, bj } = block.getCoords();
-//   const item = factoryGrid[fx][fy];
-//   const key = name.includes("meta") ? "metaFactory" : "mainFactory";
-//   if (bj < item[key][bi].length - 1) {
-//     return undefined;
-//   }
-//   return item[key][bi][bj + 1];
-// }
+  if (bj > 0) {
+    const item = factoryGrid[fx][fy];
+    const key = name.includes("meta") ? "metaFactory" : "mainFactory";
+    return item[key][bi][bj - 1];
+  }
+  return undefined;
+}
+
+export function getNextBlock(
+  block: Block,
+  factoryGrid: GridItem[][],
+): Block | undefined {
+  const { name, fx, fy, bi, bj } = block.getCoords();
+  const item = factoryGrid[fx][fy];
+  const key = name.includes("meta") ? "metaFactory" : "mainFactory";
+  if (bj < item[key][bi].length - 1) {
+    return item[key][bi][bj + 1];
+  }
+  return undefined;
+}
+
+export function getPulleyEnd(factoryGrid: GridItem[][]) {
+  return factoryGrid
+    .flat(2)
+    .flatMap((item) => [...item.mainFactory.flat(), ...item.metaFactory.flat()])
+    .find((block) => block.type === "pulley-end");
+}
+
+export function getPulleyEndCoords(factoryGrid: GridItem[][]) {
+  const end = { x: 0, y: 0 };
+  factoryGrid.flat().forEach((item) => {
+    const { dx, dy, x, y, mainFactory, metaFactory } = item;
+    const mainEnd = mainFactory
+      .flat()
+      .find((block) => block.type === "pulley-end");
+    const metaEnd = metaFactory
+      .flat()
+      .find((block) => block.type === "pulley-end");
+
+    if (mainEnd) {
+      end.x = dx + mainEnd.props.x + mainEnd.props.w / 2;
+      end.y = config.margin.y + dy + mainEnd.props.y + mainEnd.props.h / 2;
+    }
+    if (metaEnd) {
+      end.x = dx + metaEnd.props.x + metaEnd.props.w / 2 + x;
+      end.y = config.margin.y + dy + metaEnd.props.y + metaEnd.props.h / 2 + y;
+    }
+  });
+  return end;
+}

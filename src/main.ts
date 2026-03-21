@@ -5,12 +5,13 @@ import {
   assets,
   colors,
   config,
+  factoryConfig,
   icons,
   palette,
   params,
 } from "./config";
 import { createIndustry } from "./industry";
-import { Block } from "./Block";
+import { Block, getNextBlock, getPrevBlock } from "./Block";
 import { getKeys } from "./utils";
 
 type IndustryParams = {
@@ -28,24 +29,8 @@ const industryParams: IndustryParams = {
     [
       { steps: 4, subSteps: 4, direction: "horizontal" },
       { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
     ],
     [
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-    ],
-    [
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-    ],
-    [
-      { steps: 4, subSteps: 4, direction: "horizontal" },
-      { steps: 4, subSteps: 4, direction: "horizontal" },
       { steps: 4, subSteps: 4, direction: "horizontal" },
       { steps: 4, subSteps: 4, direction: "horizontal" },
     ],
@@ -53,15 +38,6 @@ const industryParams: IndustryParams = {
 };
 
 const sketch = (p: p5) => {
-  function mulberry32(a: number) {
-    return function () {
-      var t = (a += 0x6d2b79f5);
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-
   function loadAssets() {
     icons.forEach((icon) => {
       colors.forEach((color) => {
@@ -75,21 +51,7 @@ const sketch = (p: p5) => {
 
   let randomFnCalls = 0;
 
-  const seeds = (() => {
-    p.randomSeed(10);
-    return Array.from({ length: 16 }, () => mulberry32(p.random() * 100));
-  })();
-
-  const random: (grid: number) => (min: number, max: number) => number =
-    (grid: number) => (min: number, max: number) => {
-      const rand = seeds[grid](); // returns a float between 0 and 1
-      return min + rand * (max - min);
-    };
-
-  // function randomFn(min: number, max: number) {
-  //   randomFnCalls++;
-  //   return Math.floor(p.random(min, max));
-  // }
+  const random = (min: number, max: number) => p.random(min, max);
 
   function recreateGrid() {
     factoryGrid = createIndustry(
@@ -100,29 +62,37 @@ const sketch = (p: p5) => {
   }
 
   function randomizeColors() {
-    // params.colors.background = random([...colors.filter((c) => c !== "white")]);
-    // params.colors.block = random([
-    //   ...colors.filter((c) => c !== params.colors.background && c !== "white"),
-    // ]);
-    // params.colors.biggest = random([
-    //   ...colors.filter(
-    //     (c) =>
-    //       c !== params.colors.background &&
-    //       c !== params.colors.block &&
-    //       c !== "white",
-    //   ),
-    // ]);
-    params.colors.background = "blue";
-    params.colors.block = "pink";
-    params.colors.biggest = "black";
+    params.colors.background = p.random([
+      ...colors.filter((c) => c !== "white"),
+    ]);
+    params.colors.block = p.random([
+      ...colors.filter((c) => c !== params.colors.background && c !== "white"),
+    ]);
+    params.colors.biggest = p.random([
+      ...colors.filter(
+        (c) =>
+          c !== params.colors.background &&
+          c !== params.colors.block &&
+          c !== "white",
+      ),
+    ]);
+    assignColors(
+      factoryGrid
+        .flat(2)
+        .flatMap((item) => [
+          ...item.mainFactory.flat(),
+          ...item.metaFactory.flat(),
+        ]),
+    );
   }
 
   function setRandomValues() {
     randomizeColors();
-    // params.randomIcon = random([...icons]);
-    // params.machineNumber = Math.floor(random(0, 256));
+    params.randomIcon = p.random([...icons]);
+    params.machineNumber = Math.floor(p.random(0, 256));
 
     recreateGrid();
+    assignTypes(factoryGrid);
   }
 
   let factoryGrid: GridItem[][] = [];
@@ -141,6 +111,116 @@ const sketch = (p: p5) => {
     });
   };
 
+  function assignColors(blocks: Block[]) {
+    blocks.forEach((block) =>
+      block.setColor(
+        p.random([
+          ...colors.filter(
+            (c) => c !== "white" && c !== params.colors.background,
+          ),
+        ]),
+      ),
+    );
+  }
+
+  function assignTypes(factoryGrid: GridItem[][]) {
+    const everyBlock = factoryGrid
+      .flat(2)
+      .flatMap((item) => [
+        ...item.mainFactory.flat(),
+        ...item.metaFactory.flat(),
+      ]);
+
+    assignColors(everyBlock);
+
+    factoryGrid.flat().forEach((item) => {
+      const { mainFactory, metaFactory } = item;
+      mainFactory
+        .flat()
+        .filter((b) => b.type !== "meta")
+        .forEach((b) => {
+          if (p.random() > 1 - factoryConfig.mainFactoryHiddenRatio) {
+            b.setType("hidden");
+          }
+        });
+      metaFactory.flat().forEach((b) => {
+        if (p.random() > 1 - factoryConfig.metaFactoryHiddenRatio) {
+          b.setType("hidden");
+        }
+      });
+    });
+
+    // Biggest, draw ring
+    const biggestBlock = Block.getBiggest(
+      everyBlock.filter((b) => b.type === "initial"),
+    );
+    biggestBlock.setType("biggest");
+
+    // Screws
+    const screwsBlock = everyBlock
+      .filter((b) => b.type === "initial")
+      .filter(canFitScrews)
+      .at(0);
+    if (screwsBlock) {
+      screwsBlock.setType("screws");
+    }
+
+    // Cables
+    const cablesBlock = everyBlock
+      .filter((b) => b.type === "initial")
+      .filter((block) => canFitCables(block, factoryGrid))
+      .at(0);
+    if (cablesBlock) {
+      cablesBlock.setType("cables");
+      const prev = getPrevBlock(cablesBlock, factoryGrid);
+      if (prev) {
+        prev.setType("cables-prev");
+      }
+    }
+
+    // Icon
+    const iconBlock = Block.getSquarer(
+      everyBlock
+        .filter((b) => b.type === "initial")
+        .filter((block) => block.getSize() > 100 * 100),
+    );
+    if (iconBlock) {
+      iconBlock.setType("icon");
+    }
+
+    // Animated
+    const animatedPrevBlocks = everyBlock
+      .filter((b) => b.type === "initial")
+      .filter((block) => canBeAnimatedPrev(block, factoryGrid))
+      .slice(0, 2);
+    animatedPrevBlocks.forEach((block) => {
+      block.setType("animated-prev");
+    });
+
+    const animatedNextBlocks = everyBlock
+      .filter((b) => b.type === "initial")
+      .filter((block) => canBeAnimatedNext(block, factoryGrid))
+      .slice(0, 2);
+    animatedNextBlocks.forEach((block) => {
+      block.setType("animated-next");
+    });
+
+    // Label
+    const labelBlock = everyBlock
+      .filter((b) => b.type === "initial")
+      .filter(canFitLabel)
+      .at(0);
+    if (labelBlock) {
+      labelBlock.setType("label");
+    }
+
+    // Pulley
+    const pulleyBlock = everyBlock
+      .filter((b) => b.type === "initial")
+      .at(0)
+      ?.setType("pulley-end");
+  }
+
   p.setup = () => {
     p.createCanvas(p.windowWidth, p.windowHeight);
     p.randomSeed(25);
@@ -154,6 +234,18 @@ const sketch = (p: p5) => {
   };
 
   p.keyPressed = () => {
+    if (p.key === "h") {
+      if (gui._hidden) {
+        gui.show();
+      } else {
+        gui.hide();
+      }
+    }
+    if (p.key === "f") {
+      // toggle full screen
+      const fs = p.fullscreen();
+      p.fullscreen(!fs);
+    }
     if (p.key === "r") {
       console.clear();
       setRandomValues();
@@ -186,26 +278,17 @@ const sketch = (p: p5) => {
 
         p.push();
         p.translate(config.margin.x + dx, config.margin.y + dy);
-        const biggest = Block.getBiggest(mainFactory.flat());
         mainFactory.forEach((blocks) => {
           blocks.forEach((block) => {
-            // if (block.id === biggest.id) {
-            //   block.setColor(params.colors.biggest);
-            // } else {
-            //   block.setColor(params.colors.block);
-            // }
-            block.setColor(params.colors.block);
-
-            block.draw(p, params, factoryGrid);
+            if (block.type !== "meta") {
+              block.draw(p, params, factoryGrid);
+            }
           });
         });
-
         p.translate(x, y);
-        // mainFactory.flat().forEach((block) => block.draw(p, params, factoryGrid));
-        // p.translate(x, y);
-        metaFactory
-          .flat()
-          .forEach((block) => block.draw(p, params, factoryGrid));
+        metaFactory.flat().forEach((block) => {
+          block.draw(p, params, factoryGrid);
+        });
         p.pop();
       });
     });
@@ -215,5 +298,61 @@ const sketch = (p: p5) => {
     // p.noLoop();
   };
 };
+
+function canFitCables(block: Block, factoryGrid: GridItem[][]) {
+  const { plugSize, deltas, padding, length } = factoryConfig.cables;
+  const target =
+    (plugSize * deltas.length + padding * (deltas.length - 1)) * 1.5;
+  const secondaryTarget = ((length - padding) / 2 + plugSize) * 2 + padding;
+
+  const { w, h } = block.props;
+
+  const prevBlock = getPrevBlock(block, factoryGrid);
+  if (!prevBlock || prevBlock.type !== "initial") {
+    return false;
+  }
+
+  const { w: pw, h: ph } = prevBlock.props;
+
+  if (block.id.includes("meta")) {
+    return (
+      w > secondaryTarget && h > target && pw > secondaryTarget && ph > target
+    );
+  } else {
+    return (
+      h > secondaryTarget && w > target && pw > target && ph > secondaryTarget
+    );
+  }
+}
+
+function canFitScrews(block: Block) {
+  const { w, h } = block.props;
+  const { size, padding } = factoryConfig.screws;
+  const target = (size * 2 + padding * 2) * 1.5;
+  return w > target && h > target;
+}
+
+function canBeAnimatedPrev(block: Block, factoryGrid: GridItem[][]) {
+  const prev = getPrevBlock(block, factoryGrid);
+  return (
+    prev && // Has previous block
+    prev.type === "hidden" && // Previous block is hidden
+    !getPrevBlock(prev, factoryGrid)?.type.startsWith("animated") // Previous block's previous block is not animated
+  );
+}
+
+function canBeAnimatedNext(block: Block, factoryGrid: GridItem[][]) {
+  const next = getNextBlock(block, factoryGrid);
+  return (
+    next && // Has next block
+    next.type === "hidden" && // Next block is hidden
+    !getNextBlock(next, factoryGrid)?.type.startsWith("animated") // Next block's next block is not animated
+  );
+}
+
+function canFitLabel(block: Block) {
+  const { w, h } = block.props;
+  return w > 100 && h > 4 * config.padding + 2 * 14;
+}
 
 new p5(sketch);

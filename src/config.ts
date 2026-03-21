@@ -86,16 +86,23 @@ export const assets: Assets = {
 };
 
 export const factoryConfig = {
-  nails: { padding: 4, size: 10, quantity: 0 },
+  screws: { padding: 4, size: 10, quantity: 0 },
   cables: {
     padding: 20,
+    // TODO: improve this in order to determine number of cables
+    // TODO: and derive deltas from the padding
     deltas: [-20, 0, 20],
     length: 12,
     plugSize: 10,
     quantity: 0,
   },
-  animatedBlocks: { quantity: 3 },
+  animatedBlocks: {
+    quantity: 3,
+    factors: Array.from({ length: 20 }).map((_) => Math.random()),
+  },
   pulleyCables: { quantity: 1, factor: 1.1, width: 20, speed: 0 },
+  mainFactoryHiddenRatio: 0.1,
+  metaFactoryHiddenRatio: 0.2,
 };
 
 export type GridItem = {

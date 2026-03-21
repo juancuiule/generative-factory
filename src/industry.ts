@@ -1,7 +1,7 @@
 import { Block } from "./block";
 import { createGrid } from "./budget-grid";
 import { config, Factory, GridItem } from "./config";
-import { RandomFn, RandomFnBuilder } from "./types";
+import { RandomFn } from "./types";
 
 type FactoryProps = {
   width: number;
@@ -46,7 +46,7 @@ type Def = {
 export function createIndustry(
   axis: "rows" | "cols",
   defs: Def[][],
-  randomFn: RandomFnBuilder,
+  randomFn: RandomFn,
 ) {
   const grid: GridItem[][] = [];
   const outerCount = defs.length;
@@ -90,61 +90,53 @@ export function createIndustry(
           padding: config.padding,
           factoryType: "main",
         },
-        randomFn(outer * 4 + inner),
+        randomFn,
       );
-
-      mainFactory.flat().forEach((block) => block.setColor("pink"));
 
       let metaFactory: Factory = [];
 
       // pick biggest block to make a meta factory inside
-      // const biggest = Block.getBiggest(mainFactory.flat());
-      // if (biggest.getSize() > 24 * 24 * 4) {
-      //   const {
-      //     props: { x, y, w: nw, h: nh, id },
-      //   } = biggest;
-      //   biggest.setType("meta");
-      //   metaFactory = createFactory(
-      //     {
-      //       width: nw,
-      //       height: nh,
-      //       steps: 2,
-      //       subSteps: 2,
-      //       direction: "vertical",
-      //       factoryName: `metaFactory-${outer}-${inner}`,
-      //       padding: config.padding,
-      //       factoryType: "meta",
-      //     },
-      //     randomFn,
-      //   );
+      const biggest = Block.getBiggest(mainFactory.flat());
+      if (
+        biggest.props.w > 24 * 4 + config.padding * 3 &&
+        biggest.props.h > 24 * 4 + config.padding * 3
+      ) {
+        const {
+          props: { x, y, w: nw, h: nh, id },
+        } = biggest;
+        biggest.setType("meta");
+        metaFactory = createFactory(
+          {
+            width: nw,
+            height: nh,
+            steps: 4,
+            subSteps: 4,
+            direction: "vertical",
+            factoryName: `metaFactory-${outer}-${inner}`,
+            padding: config.padding,
+            factoryType: "meta",
+          },
+          randomFn,
+        );
 
-      //   grid[outer][inner] = {
-      //     mainFactory,
-      //     metaFactory,
-      //     dx,
-      //     dy,
-      //     x, // : config.margin.x + dx,
-      //     y, // : config.margin.y + dy,
-      //   };
-      // } else {
-
-      //   grid[outer][inner] = {
-      //     mainFactory,
-      //     metaFactory,
-      //     dx,
-      //     dy,
-      //     x: config.margin.x + dx,
-      //     y: config.margin.y + dy,
-      //   };
-      // }
-      grid[outer][inner] = {
-        mainFactory,
-        metaFactory,
-        dx,
-        dy,
-        x: config.margin.x + dx,
-        y: config.margin.y + dy,
-      };
+        grid[outer][inner] = {
+          mainFactory,
+          metaFactory,
+          dx,
+          dy,
+          x, // : config.margin.x + dx,
+          y, // : config.margin.y + dy,
+        };
+      } else {
+        grid[outer][inner] = {
+          mainFactory,
+          metaFactory,
+          dx,
+          dy,
+          x: config.margin.x + dx,
+          y: config.margin.y + dy,
+        };
+      }
     }
   }
 
