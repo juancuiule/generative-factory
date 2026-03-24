@@ -68,10 +68,12 @@ export class Block {
 
   setColor(color: Color) {
     this.props.color = color;
+    return this;
   }
 
   setType(type: BlockType) {
     this.type = type;
+    return this;
   }
 
   getCoords() {
@@ -145,11 +147,11 @@ export class Block {
         const ccx =
           cx +
           (minR / 2 + PULLEY_WIDTH / 4) *
-            p.cos((p.frameCount * this.seed) / 100);
+            p.cos((p.frameCount * this.seed) / 1000);
         const ccy =
           cy +
           (minR / 2 + PULLEY_WIDTH / 4) *
-            p.sin((p.frameCount * this.seed) / 100);
+            p.sin((p.frameCount * this.seed) / 1000);
 
         this.pulley.ccx = ccx;
         this.pulley.ccy = ccy;
@@ -157,8 +159,10 @@ export class Block {
         p.fill(palette.white);
         p.circle(ccx, ccy, factoryConfig.screws.size);
 
-        // const endCoords = getPulleyEndCoords(factoryGrid);
-        // p.line(ccx, ccy, endCoords.x, endCoords.y);
+        const ends = getPulleyEndCoords(factoryGrid, this);
+        ends.forEach((end) => {
+          p.line(ccx, ccy, end.x, end.y);
+        });
         break;
       }
       case "screws": {
@@ -389,32 +393,42 @@ export function getNextBlock(
   return undefined;
 }
 
-export function getPulleyEnd(factoryGrid: GridItem[][]) {
-  return factoryGrid
-    .flat(2)
-    .flatMap((item) => [...item.mainFactory.flat(), ...item.metaFactory.flat()])
-    .find((block) => block.type === "pulley-end");
-}
-
-export function getPulleyEndCoords(factoryGrid: GridItem[][]) {
-  const end = { x: 0, y: 0 };
+export function getBlockBase(block: Block, factoryGrid: GridItem[][]) {
+  const coords = { x: 0, y: 0 };
   factoryGrid.flat().forEach((item) => {
     const { dx, dy, x, y, mainFactory, metaFactory } = item;
-    const mainEnd = mainFactory
-      .flat()
-      .find((block) => block.type === "pulley-end");
-    const metaEnd = metaFactory
-      .flat()
-      .find((block) => block.type === "pulley-end");
-
-    if (mainEnd) {
-      end.x = dx + mainEnd.props.x + mainEnd.props.w / 2;
-      end.y = config.margin.y + dy + mainEnd.props.y + mainEnd.props.h / 2;
+    const mainBlock = mainFactory.flat().find((b) => b.id === block.id);
+    const metaBlock = metaFactory.flat().find((b) => b.id === block.id);
+    if (mainBlock) {
+      coords.x = dx;
+      coords.y = dy;
     }
-    if (metaEnd) {
-      end.x = dx + metaEnd.props.x + metaEnd.props.w / 2 + x;
-      end.y = config.margin.y + dy + metaEnd.props.y + metaEnd.props.h / 2 + y;
+    if (metaBlock) {
+      coords.x = dx + x
+      coords.y = dy + y
     }
   });
-  return end;
+  return coords;
+}
+
+export function findByType(
+  type: BlockType,
+  factoryGrid: GridItem[][],
+): Block[] {
+  return factoryGrid
+    .flat()
+    .flatMap((item) => [...item.mainFactory.flat(), ...item.metaFactory.flat()])
+    .filter((block) => block.type === type);
+}
+
+export function getPulleyEndCoords(factoryGrid: GridItem[][], biggest: Block) {
+  const start = getBlockBase(biggest, factoryGrid);
+  const pulleys = findByType("pulley-end", factoryGrid);
+  return pulleys.map((pulley) => {
+    const end = getBlockBase(pulley, factoryGrid);
+    return {
+      x: -start.x + end.x + pulley.props.x + pulley.props.w / 2,
+      y: -start.y + end.y + pulley.props.y + pulley.props.h / 2,
+    };
+  });
 }

@@ -215,10 +215,10 @@ const sketch = (p: p5) => {
     }
 
     // Pulley
-    const pulleyBlock = everyBlock
-      .filter((b) => b.type === "initial")
-      .at(0)
-      ?.setType("pulley-end");
+    const pulleyBlock = everyBlock.filter((b) => b.type === "initial").at(0);
+    if (pulleyBlock) {
+      pulleyBlock.setType("pulley-end");
+    }
   }
 
   p.setup = () => {
@@ -292,9 +292,6 @@ const sketch = (p: p5) => {
         p.pop();
       });
     });
-
-    // should redraw biggest blocks i
-
     // p.noLoop();
   };
 };
