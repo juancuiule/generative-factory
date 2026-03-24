@@ -6,6 +6,8 @@ import {
   factoryConfig,
   GridItem,
   inverted,
+  LayerName,
+  nailsPalette,
   palette,
   Params,
 } from "./config";
@@ -105,34 +107,45 @@ export class Block {
     return [top_left, top_right, bottom_left, bottom_right];
   }
 
+  private getLayer(layers: Record<LayerName, p5.Graphics>) {
+    if (this.type === "biggest") {
+      return layers.pulley;
+    } else {
+      return layers.main;
+    }
+  }
+
   draw(
     p: p5,
     { colors: { background }, randomIcon, machineNumber }: Params,
     factoryGrid: GridItem[][],
+    layers: Record<LayerName, p5.Graphics>,
   ) {
+    const layer = this.getLayer(layers);
+
     const { x, y, w, h, color } = this.props;
     const previous = getPrevBlock(this, factoryGrid);
     const next = getNextBlock(this, factoryGrid);
 
     const { size: SCREWS_SIZE } = factoryConfig.screws;
 
-    p.push();
+    layer.push();
     switch (this.type) {
       case "hidden": {
-        // p.noStroke();
-        // p.noFill();
-        // p.rect(x, y, w, h);
+        // layer.noStroke();
+        // layer.noFill();
+        // layer.rect(x, y, w, h);
         break;
       }
       case "biggest": {
-        p.noStroke();
-        p.fill(palette[color]);
-        p.rect(x, y, w, h, config.borderRadius);
+        layer.noStroke();
+        layer.fill(palette[color]);
+        layer.rect(x, y, w, h, config.borderRadius);
 
         const r = Math.min(w, h);
-        p.noFill();
-        p.stroke(palette.white);
-        p.strokeWeight(3);
+        layer.noFill();
+        layer.stroke(palette.white);
+        layer.strokeWeight(3);
 
         const { factor: PULLEY_FACTOR, width: PULLEY_WIDTH } =
           factoryConfig.pulleyCables;
@@ -141,8 +154,8 @@ export class Block {
         const cy = y + h / 2;
         const minR = r * PULLEY_FACTOR;
         const maxR = minR + PULLEY_WIDTH;
-        p.circle(cx, cy, minR);
-        p.circle(cx, cy, maxR);
+        layer.circle(cx, cy, minR);
+        layer.circle(cx, cy, maxR);
 
         const ccx =
           cx +
@@ -156,54 +169,54 @@ export class Block {
         this.pulley.ccx = ccx;
         this.pulley.ccy = ccy;
 
-        p.fill(palette.white);
-        p.circle(ccx, ccy, factoryConfig.screws.size);
+        layer.fill(palette.white);
+        layer.circle(ccx, ccy, factoryConfig.screws.size);
 
         const ends = getPulleyEndCoords(factoryGrid, this);
         ends.forEach((end) => {
-          p.line(ccx, ccy, end.x, end.y);
+          layer.line(ccx, ccy, end.x, end.y);
         });
         break;
       }
       case "screws": {
-        p.strokeWeight(2);
-        p.strokeCap(p.ROUND);
+        layer.strokeWeight(2);
+        layer.strokeCap(layer.ROUND);
 
         this.getNailsCorners().forEach(({ x: cx, y: cy }) => {
-          p.noStroke();
-          p.fill(palette[color]);
-          p.circle(cx, cy, factoryConfig.screws.size);
+          layer.noStroke();
+          layer.fill(palette[color]);
+          layer.circle(cx, cy, factoryConfig.screws.size);
 
-          p.stroke(background);
-          p.line(cx - SCREWS_SIZE / 4, cy, cx + SCREWS_SIZE / 4, cy);
-          p.line(cx, cy - SCREWS_SIZE / 4, cx, cy + SCREWS_SIZE / 4);
+          layer.stroke(nailsPalette[color]);
+          layer.line(cx - SCREWS_SIZE / 4, cy, cx + SCREWS_SIZE / 4, cy);
+          layer.line(cx, cy - SCREWS_SIZE / 4, cx, cy + SCREWS_SIZE / 4);
         });
         break;
       }
       case "icon": {
-        p.noStroke();
-        p.fill(palette[color]);
-        p.rect(x, y, w, h, config.borderRadius);
+        layer.noStroke();
+        layer.fill(palette[color]);
+        layer.rect(x, y, w, h, config.borderRadius);
 
         const r = Math.min(w, h) * 0.8;
         const asset = assets.images[randomIcon][inverted[color]];
         if (asset) {
-          p.image(asset, x + w / 2 - r / 2, y + h / 2 - r / 2, r, r);
+          layer.image(asset, x + w / 2 - r / 2, y + h / 2 - r / 2, r, r);
         }
         break;
       }
       case "label": {
-        p.noStroke();
-        p.fill(palette[color]);
-        p.rect(x, y, w, h, config.borderRadius);
-        p.fill(palette[background]);
-        p.textSize(config.textSize);
-        p.textAlign(p.LEFT, p.TOP);
+        layer.noStroke();
+        layer.fill(palette[color]);
+        layer.rect(x, y, w, h, config.borderRadius);
+        layer.fill(palette[background]);
+        layer.textSize(config.textSize);
+        layer.textAlign(layer.LEFT, layer.TOP);
         if (assets.font) {
-          p.textFont(assets.font);
+          layer.textFont(assets.font);
         }
-        p.text("Machine", x + 2 * config.padding, y + 2 * config.padding);
-        p.text(
+        layer.text("Machine", x + 2 * config.padding, y + 2 * config.padding);
+        layer.text(
           `#${machineNumber}`,
           x + 2 * config.padding,
           y + 2 * config.padding + config.textSize,
@@ -211,22 +224,22 @@ export class Block {
         break;
       }
       case "pulley-end": {
-        p.noStroke();
-        p.fill(palette[color]);
-        p.rect(x, y, w, h, config.borderRadius);
+        layer.noStroke();
+        layer.fill(palette[color]);
+        layer.rect(x, y, w, h, config.borderRadius);
 
-        p.fill(palette.white);
-        p.circle(x + w / 2, y + h / 2, SCREWS_SIZE);
+        layer.fill(palette.white);
+        layer.circle(x + w / 2, y + h / 2, SCREWS_SIZE);
         break;
       }
       case "cables": {
-        p.noStroke();
-        p.fill(palette[color]);
-        p.rect(x, y, w, h, config.borderRadius);
+        layer.noStroke();
+        layer.fill(palette[color]);
+        layer.rect(x, y, w, h, config.borderRadius);
 
-        p.stroke(palette[background]);
-        p.strokeWeight(2);
-        p.noFill();
+        layer.stroke(palette[background]);
+        layer.strokeWeight(2);
+        layer.noFill();
 
         const x0 = w / 2;
         const y0 = h / 2;
@@ -238,35 +251,35 @@ export class Block {
             const dot_y = y0 + y + delta;
             const minX = x - cables.length - config.padding;
             const maxX = x + cables.length;
-            p.circle(minX, dot_y, cables.plugSize);
-            p.circle(maxX, dot_y, cables.plugSize);
-            p.line(minX, dot_y, maxX, dot_y);
+            layer.circle(minX, dot_y, cables.plugSize);
+            layer.circle(maxX, dot_y, cables.plugSize);
+            layer.line(minX, dot_y, maxX, dot_y);
           });
         } else {
           cables.deltas.forEach((delta) => {
             const dot_x = x0 + x + delta;
             const minY = y - cables.length - config.padding;
             const maxY = y + cables.length;
-            p.circle(dot_x, minY, cables.plugSize);
-            p.circle(dot_x, maxY, cables.plugSize);
-            p.line(dot_x, minY, dot_x, maxY);
+            layer.circle(dot_x, minY, cables.plugSize);
+            layer.circle(dot_x, maxY, cables.plugSize);
+            layer.line(dot_x, minY, dot_x, maxY);
           });
         }
         break;
       }
       case "initial":
       case "cables-prev": {
-        p.noStroke();
-        p.fill(palette[color]);
-        p.rect(x, y, w, h, config.borderRadius);
+        layer.noStroke();
+        layer.fill(palette[color]);
+        layer.rect(x, y, w, h, config.borderRadius);
         break;
       }
     }
 
     if (this.type.startsWith("animated")) {
       // Strat drawing the connection to the previous/next block
-      p.stroke(palette.white);
-      p.strokeWeight(2);
+      layer.stroke(palette.white);
+      layer.strokeWeight(2);
       if (this.type === "animated-prev" && previous) {
         // If meta animates horizontally
         if (this.id.includes("meta")) {
@@ -279,7 +292,7 @@ export class Block {
             0,
           );
           this.props.x = this.initialProps.x + dx;
-          p.line(
+          layer.line(
             this.props.x + w / 2,
             this.props.y + h / 2,
             this.initialProps.x + w - config.padding,
@@ -295,7 +308,7 @@ export class Block {
             0,
           );
           this.props.y = this.initialProps.y + dy;
-          p.line(
+          layer.line(
             this.props.x + w / 2,
             this.props.y + h / 2,
             this.props.x + w / 2,
@@ -315,7 +328,7 @@ export class Block {
             space,
           );
           this.props.x = this.initialProps.x + dx;
-          p.line(
+          layer.line(
             this.props.x + w / 2,
             this.props.y + h / 2,
             this.initialProps.x + config.padding,
@@ -331,7 +344,7 @@ export class Block {
             space,
           );
           this.props.y = this.initialProps.y + dy;
-          p.line(
+          layer.line(
             this.props.x + w / 2,
             this.props.y + h / 2,
             this.props.x + w / 2,
@@ -340,14 +353,14 @@ export class Block {
         }
       }
 
-      p.noStroke();
-      p.fill(palette[color]);
-      p.rect(x, y, w, h, config.borderRadius);
-      p.fill(palette.white);
-      p.circle(x + w / 2, y + h / 2, factoryConfig.screws.size);
+      layer.noStroke();
+      layer.fill(palette[color]);
+      layer.rect(x, y, w, h, config.borderRadius);
+      layer.fill(palette.white);
+      layer.circle(x + w / 2, y + h / 2, factoryConfig.screws.size);
     }
 
-    p.pop();
+    layer.pop();
   }
 
   static getBiggest(blocks: Block[]) {
@@ -404,8 +417,8 @@ export function getBlockBase(block: Block, factoryGrid: GridItem[][]) {
       coords.y = dy;
     }
     if (metaBlock) {
-      coords.x = dx + x
-      coords.y = dy + y
+      coords.x = dx + x;
+      coords.y = dy + y;
     }
   });
   return coords;

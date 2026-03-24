@@ -2,6 +2,8 @@ import GUI from "lil-gui";
 import p5 from "p5";
 import {
   GridItem,
+  LAYERS,
+  LayerName,
   assets,
   colors,
   config,
@@ -11,7 +13,7 @@ import {
   params,
 } from "./config";
 import { createIndustry } from "./industry";
-import { Block, getNextBlock, getPrevBlock } from "./Block";
+import { Block, getNextBlock, getPrevBlock } from "./block";
 import { getKeys } from "./utils";
 
 type IndustryParams = {
@@ -38,6 +40,11 @@ const industryParams: IndustryParams = {
 };
 
 const sketch = (p: p5) => {
+  let layers: Record<LayerName, p5.Graphics> = {
+    main: p.createGraphics(p.windowWidth, p.windowHeight),
+    pulley: p.createGraphics(p.windowWidth, p.windowHeight),
+  };
+
   function loadAssets() {
     icons.forEach((icon) => {
       colors.forEach((color) => {
@@ -223,13 +230,24 @@ const sketch = (p: p5) => {
 
   p.setup = () => {
     p.createCanvas(p.windowWidth, p.windowHeight);
+
+    // Create all layers once
+    layers = Object.fromEntries(
+      LAYERS.map((name) => [name, p.createGraphics(p.width, p.height)]),
+    ) as Record<LayerName, p5.Graphics>;
+
     p.randomSeed(25);
+
     // p.frameRate(1);
     setRandomValues();
   };
 
   p.windowResized = () => {
     p.resizeCanvas(p.windowWidth, p.windowHeight);
+    LAYERS.forEach((name) => {
+      layers[name].remove();
+      layers[name] = p.createGraphics(p.width, p.height);
+    });
     p.redraw();
   };
 
@@ -263,35 +281,54 @@ const sketch = (p: p5) => {
     }
   };
 
+  function forEachLayer(fn: (layer: p5.Graphics) => void) {
+    LAYERS.forEach((name) => {
+      fn(layers[name]);
+    });
+  }
+
   p.draw = () => {
+    forEachLayer((layer) => layer.clear());
+
     p.background(palette[params.colors.background]);
-    p.push();
-    p.translate(
-      (p.width - config.space.width) / 2,
-      (p.height - config.space.height) / 2,
-    );
+
+    forEachLayer((layer) => {
+      layer.push();
+      layer.translate(
+        (p.width - config.space.width) / 2,
+        (p.height - config.space.height) / 2,
+      );
+    });
 
     factoryGrid.forEach((primaryAxis) => {
       primaryAxis.forEach((item) => {
         const { dx, dy, x, y } = item;
         const { mainFactory, metaFactory } = item;
 
-        p.push();
-        p.translate(config.margin.x + dx, config.margin.y + dy);
+        forEachLayer((layer) => {
+          layer.push();
+          layer.translate(config.margin.x + dx, config.margin.y + dy);
+        });
         mainFactory.forEach((blocks) => {
           blocks.forEach((block) => {
             if (block.type !== "meta") {
-              block.draw(p, params, factoryGrid);
+              block.draw(p, params, factoryGrid, layers);
             }
           });
         });
-        p.translate(x, y);
+
+        forEachLayer((layer) => layer.translate(x, y));
         metaFactory.flat().forEach((block) => {
-          block.draw(p, params, factoryGrid);
+          block.draw(p, params, factoryGrid, layers);
         });
-        p.pop();
+
+        forEachLayer((layer) => layer.pop());
       });
     });
+
+    forEachLayer((layer) => p.image(layer, 0, 0));
+    p.pop();
+    forEachLayer((layer) => layer.pop());
     // p.noLoop();
   };
 };

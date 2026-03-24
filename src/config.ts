@@ -18,7 +18,9 @@ export const config = {
 
 export const colors = ["pink", "black", "blue", "white"] as const;
 export const icons = ["tension", "warning", "text"] as const;
+export const LAYERS = ["main", "pulley"] as const;
 
+export type LayerName = (typeof LAYERS)[number];
 export type Color = (typeof colors)[number];
 export type Icon = (typeof icons)[number];
 
@@ -34,6 +36,13 @@ export const inverted: Record<Color, Color> = {
   black: "white",
   blue: "black",
   white: "blue",
+};
+
+export const nailsPalette: Record<Color, string> = {
+  pink: "#131313",
+  black: "#f4f4f4",
+  blue: "#f4f4f4",
+  white: "#f4f4f4",
 };
 
 export type Assets = {
