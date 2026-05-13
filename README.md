@@ -2,7 +2,7 @@
 
 A generative art sketch built with [p5.js](https://p5js.org/) and TypeScript. It procedurally constructs industrial-machinery-inspired compositions: a grid of rectangular "factories", each subdivided into blocks that are then assigned visual roles — pulleys, cables, screws, animated pistons, icons, and labels — all drawn on layered canvases.
 
-![palette: pink / blue / black](.github/preview.png)
+<img src="./palette.png" alt="palette: pink / blue / black" width="100%" style="max-width: 300px;">
 
 ---
 
